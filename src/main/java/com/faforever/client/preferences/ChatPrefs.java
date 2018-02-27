@@ -74,6 +74,10 @@ public class ChatPrefs {
     this.chatFormat.setValue(chatFormat);
   }
 
+  public ObjectProperty<ChatFormat> chatFormatProperty() {
+    return chatFormat;
+  }
+
   public ObjectProperty<ChatColorMode> chatColorModeProperty() {
     return chatColorMode;
   }

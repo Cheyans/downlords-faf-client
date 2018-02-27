@@ -278,8 +278,6 @@ public class SettingsController implements Controller<Node> {
     chatComboBox.setButtonCell(new StringListCell<>(chatFormat -> i18n.get(chatFormat.getI18nKey())));
     chatComboBox.setCellFactory(param -> new StringListCell<>(chatFormat -> i18n.get(chatFormat.getI18nKey())));
     chatComboBox.setItems(FXCollections.observableArrayList(ChatFormat.values()));
-    chatComboBox.setDisable(false);
-    chatComboBox.setFocusTraversable(true);
     chatComboBox.getSelectionModel().select(preferences.getChat().getChatFormat());
   }
 
