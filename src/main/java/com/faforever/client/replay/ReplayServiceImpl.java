@@ -161,7 +161,7 @@ public class ReplayServiceImpl implements ReplayService {
       for (Path replayFile : directoryStream) {
         try {
           LocalReplayInfo replayInfo = replayFileReader.parseMetaData(replayFile);
-          FeaturedMod featuredMod = modService.getFeaturedMod(replayInfo.getFeaturedMod()).getNow(FeaturedMod.UNKNOWN);
+          FeaturedMod featuredMod = modService.getFeaturedMod(replayInfo.getFeaturedMod()).get();
 
           mapService.findByMapFolderName(replayInfo.getMapname())
               .thenAccept(mapBean -> {
