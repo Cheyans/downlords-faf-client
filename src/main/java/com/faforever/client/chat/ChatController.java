@@ -242,7 +242,7 @@ public class ChatController extends AbstractViewController<Node> {
     super.onDisplay(navigateEvent);
     if (!tabPane.getTabs().isEmpty()) {
       Tab tab = tabPane.getSelectionModel().getSelectedItem();
-      nameToChatTabController.get(tab.getId()).onDisplay();
+      Optional.ofNullable(nameToChatTabController.get(tab.getId())).ifPresent(AbstractChatTabController::onDisplay);
     }
   }
 
