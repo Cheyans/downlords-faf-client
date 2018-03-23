@@ -4,16 +4,21 @@ import com.faforever.client.chat.ChatColorMode;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ListProperty;
 import javafx.beans.property.MapProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleMapProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
+
+import java.util.ArrayList;
 
 import static com.faforever.client.chat.ChatColorMode.CUSTOM;
 
@@ -28,6 +33,7 @@ public class ChatPrefs {
   private final MapProperty<String, Color> userToColor;
   private final BooleanProperty hideFoeMessages;
   private final ObjectProperty<TimeInfo> timeFormat;
+  private final ListProperty<String> autoJoinChannels;
 
   /**
    * Time in minutes a player has to be inactive to be considered idle.
@@ -46,6 +52,7 @@ public class ChatPrefs {
     userToColor = new SimpleMapProperty<>(FXCollections.observableHashMap());
     chatColorMode = new SimpleObjectProperty<>(CUSTOM);
     idleThreshold = new SimpleIntegerProperty(10);
+    autoJoinChannels = new SimpleListProperty<>(FXCollections.observableArrayList(new ArrayList<String>()));
   }
 
   public ChatColorMode getChatColorMode() {
@@ -163,5 +170,17 @@ public class ChatPrefs {
 
   public IntegerProperty idleThresholdProperty() {
     return idleThreshold;
+  }
+
+  public ObservableList<String> getAutoJoinChannels() {
+    return autoJoinChannels.get();
+  }
+
+  public void addAutoJoinChannel(String channelName) {
+    autoJoinChannels.get().add(channelName);
+  }
+
+  public void removeAutoJoinChannel(String channelName) {
+    autoJoinChannels.get().remove(channelName);
   }
 }

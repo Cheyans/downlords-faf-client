@@ -27,7 +27,9 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
+import javafx.geometry.Bounds;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -37,6 +39,7 @@ import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.Region;
+import javafx.stage.Popup;
 import javafx.stage.Screen;
 import javafx.util.converter.NumberStringConverter;
 import lombok.extern.slf4j.Slf4j;
@@ -108,6 +111,9 @@ public class SettingsController implements Controller<Node> {
   public ComboBox<UnitDataBaseType> unitDatabaseComboBox;
   public CheckBox notifyOnAtMentionOnly;
   private ChangeListener<Theme> themeChangeListener;
+  public Button autoJoinChannelsButton;
+  private Popup autojoinChannelsPopUp;
+  private AutoJoinChannelsController autoJoinChannelsController;
 
   @Inject
   public SettingsController(UserService userService, PreferencesService preferencesService, UiService uiService,
@@ -234,7 +240,7 @@ public class SettingsController implements Controller<Node> {
     executionDirectoryField.textProperty().bindBidirectional(preferences.getForgedAlliance().executionDirectoryProperty(), PATH_STRING_CONVERTER);
 
     passwordChangeErrorLabel.setVisible(false);
-
+    addAutoJoinChannelsPopup();
     initUnitDatabaseSelection(preferences);
   }
 
@@ -385,5 +391,26 @@ public class SettingsController implements Controller<Node> {
           return null;
         }
     );
+  }
+
+  public void onAutoJoinChannelsButtonClicked(ActionEvent actionEvent) {
+    if (autojoinChannelsPopUp.isShowing()) {
+      autojoinChannelsPopUp.hide();
+      return;
+    }
+
+    Button button = (Button) actionEvent.getSource();
+
+    Bounds screenBounds = autoJoinChannelsButton.localToScreen(autoJoinChannelsButton.getBoundsInLocal());
+    autojoinChannelsPopUp.show(button.getScene().getWindow(), screenBounds.getMinX(), screenBounds.getMaxY());
+  }
+
+  private void addAutoJoinChannelsPopup() {
+    autojoinChannelsPopUp = new Popup();
+    autojoinChannelsPopUp.setAutoFix(false);
+    autojoinChannelsPopUp.setAutoHide(true);
+
+    autoJoinChannelsController = uiService.loadFxml("theme/settings/auto_join_channels.fxml");
+    autojoinChannelsPopUp.getContent().setAll(autoJoinChannelsController.getRoot());
   }
 }
