@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<?import javafx.scene.control.TreeTableColumn?>
+<?import javafx.scene.control.TreeTableView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<StackPane xmlns:fx="http://javafx.com/fxml/1" fx:id="root" maxHeight="1.7976931348623157E308"
+           maxWidth="1.7976931348623157E308" xmlns="http://javafx.com/javafx/8"
+           fx:controller="com.faforever.client.tutorial.TutorialController">
+    <children>
+        <TreeTableView fx:id="treeTableTutorials" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
+                       HBox.hgrow="ALWAYS">
+            <columns>
+                <TreeTableColumn fx:id="categoryTreeTableColumn" prefWidth="75.0" text="%tutorial.category"/>
+                <TreeTableColumn fx:id="ordinalTreeTableColumn" prefWidth="75.0" text="%tutorial.ordinal"/>
+                <TreeTableColumn fx:id="imageTreeTableColumn" prefWidth="75.0" text="%tutorial.image"/>
+                <TreeTableColumn fx:id="mapTreeTableColumn" prefWidth="75.0" text="%tutorial.map"/>
+                <TreeTableColumn fx:id="nameTreeTableColumn" prefWidth="75.0" text="%tutorial.name"/>
+            </columns>
+        </TreeTableView>
+    </children>
+</StackPane>
