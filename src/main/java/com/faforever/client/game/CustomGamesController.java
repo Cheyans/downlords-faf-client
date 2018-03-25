@@ -1,20 +1,21 @@
 package com.faforever.client.game;
 
-import com.faforever.client.fx.Controller;
+import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.map.HostMapInCustomGameEvent;
+import com.faforever.client.main.event.HostGameEvent;
+import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
-import com.google.common.eventbus.Subscribe;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -25,6 +26,8 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.util.StringConverter;
+import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -39,7 +42,8 @@ import java.util.function.Predicate;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-public class CustomGamesController implements Controller<Node> {
+@Slf4j
+public class CustomGamesController extends AbstractViewController<Node> {
 
   private static final Collection<String> HIDDEN_FEATURED_MODS = Arrays.asList(
       KnownFeaturedMod.COOP.getTechnicalName(),
@@ -56,6 +60,9 @@ public class CustomGamesController implements Controller<Node> {
   private final PreferencesService preferencesService;
   private final EventBus eventBus;
   private final I18n i18n;
+  public GameDetailController gameDetailController;
+
+  private GamesTableController gamesTableController;
 
   public ToggleButton tableButton;
   public ToggleButton tilesButton;
@@ -64,10 +71,15 @@ public class CustomGamesController implements Controller<Node> {
   public Pane gameViewContainer;
   public Pane gamesRoot;
   public ScrollPane gameDetailPane;
-  public GameDetailController gameDetailController;
   public ChoiceBox<TilesSortingOrder> chooseSortingTypeChoiceBox;
 
-  private FilteredList<Game> filteredItems;
+  @VisibleForTesting
+  FilteredList<Game> filteredItems;
+
+  public CheckBox showModdedGamesCheckBox;
+  public CheckBox showPasswordProtectedGamesCheckBox;
+  private final ChangeListener<Boolean> filterConditionsChangedListener = (observable, oldValue, newValue) -> updateFilteredItems();
+  private GamesTilesContainerController gamesTilesContainerController;
 
   @Inject
   public CustomGamesController(UiService uiService, GameService gameService, PreferencesService preferencesService,
@@ -96,7 +108,12 @@ public class CustomGamesController implements Controller<Node> {
     ObservableList<Game> games = gameService.getGames();
 
     filteredItems = new FilteredList<>(games);
-    filteredItems.setPredicate(OPEN_CUSTOM_GAMES_PREDICATE);
+    showModdedGamesCheckBox.selectedProperty().bindBidirectional(preferencesService.getPreferences().showModdedGamesProperty());
+    showPasswordProtectedGamesCheckBox.selectedProperty().bindBidirectional(preferencesService.getPreferences().showPasswordProtectedGamesProperty());
+
+    updateFilteredItems();
+    preferencesService.getPreferences().showModdedGamesProperty().addListener(new WeakChangeListener<>(filterConditionsChangedListener));
+    preferencesService.getPreferences().showPasswordProtectedGamesProperty().addListener(new WeakChangeListener<>(filterConditionsChangedListener));
 
     if (tilesButton.getId().equals(preferencesService.getPreferences().getGamesViewMode())) {
       viewToggleGroup.selectToggle(tilesButton);
@@ -104,6 +121,8 @@ public class CustomGamesController implements Controller<Node> {
     } else {
       viewToggleGroup.selectToggle(tableButton);
       tableButton.getOnAction().handle(null);
+      gamesTableController.setModsColumnVisibility(showModdedGamesCheckBox.selectedProperty().getValue());
+      gamesTableController.setPasswordProtectionColumnVisibility(showPasswordProtectedGamesCheckBox.selectedProperty().getValue());
     }
     viewToggleGroup.selectedToggleProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue == null) {
@@ -122,25 +141,44 @@ public class CustomGamesController implements Controller<Node> {
     eventBus.register(this);
   }
 
-  public void onShowPrivateGames(ActionEvent actionEvent) {
-    CheckBox checkBox = (CheckBox) actionEvent.getSource();
-    boolean selected = checkBox.isSelected();
-    if (selected) {
-      filteredItems.setPredicate(OPEN_CUSTOM_GAMES_PREDICATE);
-    } else {
-      filteredItems.setPredicate(OPEN_CUSTOM_GAMES_PREDICATE.and(gameInfoBean -> !gameInfoBean.getPasswordProtected()));
+  @Override
+  public void onDisplay(NavigateEvent navigateEvent) {
+    if (navigateEvent instanceof HostGameEvent) {
+      onCreateGame(((HostGameEvent) navigateEvent).getMapFolderName());
+    }
+  }
+
+  private void updateFilteredItems() {
+    preferencesService.storeInBackground();
+
+    boolean showPasswordProtectedGames = showPasswordProtectedGamesCheckBox.isSelected();
+    boolean showModdedGames = showModdedGamesCheckBox.isSelected();
+
+    filteredItems.setPredicate(OPEN_CUSTOM_GAMES_PREDICATE.and(gameInfoBean ->
+        (showPasswordProtectedGames || !gameInfoBean.getPasswordProtected())
+            && (showModdedGames || gameInfoBean.getSimMods().isEmpty())));
+    if (tableButton.isSelected()) {
+      gamesTableController.setModsColumnVisibility(showModdedGamesCheckBox.selectedProperty().getValue());
+      gamesTableController.setPasswordProtectionColumnVisibility(showPasswordProtectedGamesCheckBox.selectedProperty().getValue());
     }
   }
 
   public void onCreateGameButtonClicked() {
+    onCreateGame(null);
+  }
+
+  private void onCreateGame(@Nullable String mapFolderName) {
     if (preferencesService.getPreferences().getForgedAlliance().getPath() == null) {
       CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
       eventBus.post(new GameDirectoryChooseEvent(gameDirectoryFuture));
-      gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> onCreateGameButtonClicked()));
+      gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> onCreateGame(null)));
       return;
     }
 
     CreateGameController createGameController = uiService.loadFxml("theme/play/create_game.fxml");
+    if (mapFolderName != null && !createGameController.selectMap(mapFolderName)) {
+      log.warn("Map with folder name: '{}' could not be found in map list", mapFolderName);
+    }
 
     Pane createGameRoot = createGameController.getRoot();
     gamesRoot.getChildren().add(createGameRoot);
@@ -151,17 +189,12 @@ public class CustomGamesController implements Controller<Node> {
     createGameRoot.requestFocus();
   }
 
-  @Subscribe
-  public void onHostMapInCustomGameEvent(HostMapInCustomGameEvent event) {
-    createGameButton.fire();
-  }
-
   public Node getRoot() {
     return gamesRoot;
   }
 
   public void onTableButtonClicked() {
-    GamesTableController gamesTableController = uiService.loadFxml("theme/play/games_table.fxml");
+    gamesTableController = uiService.loadFxml("theme/play/games_table.fxml");
     gamesTableController.selectedGameProperty()
         .addListener((observable, oldValue, newValue) -> setSelectedGame(newValue));
     Platform.runLater(() -> {
@@ -182,7 +215,7 @@ public class CustomGamesController implements Controller<Node> {
   }
 
   public void onTilesButtonClicked() {
-    GamesTilesContainerController gamesTilesContainerController = uiService.loadFxml("theme/play/games_tiles_container.fxml");
+    gamesTilesContainerController = uiService.loadFxml("theme/play/games_tiles_container.fxml");
     gamesTilesContainerController.selectedGameProperty()
         .addListener((observable, oldValue, newValue) -> setSelectedGame(newValue));
     chooseSortingTypeChoiceBox.getItems().clear();
@@ -203,5 +236,10 @@ public class CustomGamesController implements Controller<Node> {
     }
 
     gameDetailPane.setVisible(true);
+  }
+
+  @VisibleForTesting
+  void setFilteredList(ObservableList<Game> games) {
+    filteredItems = new FilteredList<>(games, s -> true);
   }
 }

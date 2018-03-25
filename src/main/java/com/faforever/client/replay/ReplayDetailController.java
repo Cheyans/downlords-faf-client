@@ -5,6 +5,7 @@ import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
+import com.faforever.client.game.RatingType;
 import com.faforever.client.game.TeamCardController;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
@@ -172,7 +173,8 @@ public class ReplayDetailController implements Controller<Node> {
 
     modLabel.setText(replay.getFeaturedMod().getDisplayName());
     playerCountLabel.setText(i18n.number(replay.getTeams().values().stream().mapToInt(List::size).sum()));
-    qualityLabel.setText(i18n.number((int) ((ratingService.calculateQuality(replay) * 10) / 10)));
+    qualityLabel.setText(i18n.get("percentage", (int) ratingService.calculateQuality(replay) * 100));
+
     replay.getTeamPlayerStats().values().stream()
         .flatMapToInt(playerStats -> playerStats.stream()
             .mapToInt(stats -> RatingUtil.getRating(stats.getBeforeMean(), stats.getBeforeDeviation())))
@@ -282,7 +284,7 @@ public class ReplayDetailController implements Controller<Node> {
           .thenAccept(players -> controller.setPlayersInTeam(team, players, player -> {
             PlayerStats playerStats = statsByPlayerId.get(player.getId());
             return new Rating(playerStats.getBeforeMean(), playerStats.getBeforeDeviation());
-          }));
+          }, RatingType.EXACT));
 
       teamsContainer.getChildren().add(controller.getRoot());
     }));
