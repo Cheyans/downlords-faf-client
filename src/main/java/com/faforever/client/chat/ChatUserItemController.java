@@ -47,6 +47,7 @@ import org.springframework.util.StringUtils;
 
 import javax.inject.Inject;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -314,9 +315,11 @@ public class ChatUserItemController implements Controller<Node> {
     Tooltip userTooltip = new Tooltip();
     usernameLabel.setTooltip(userTooltip);
     userTooltip.textProperty().bind(Bindings.createStringBinding(
-        () -> i18n.get("userInfo.ratingFormat", getGlobalRating(player), getLeaderboardRating(player)),
+        () -> String.format("%s\n%s",
+            i18n.get("userInfo.ratingFormat", getGlobalRating(player), getLeaderboardRating(player)),
+            i18n.get("userInfo.idleTimeFormat", Duration.between(player.getIdleSince(), Instant.now()).toMinutes())),
         player.leaderboardRatingMeanProperty(), player.leaderboardRatingDeviationProperty(),
-        player.globalRatingMeanProperty(), player.globalRatingDeviationProperty()
+        player.globalRatingMeanProperty(), player.globalRatingDeviationProperty(), player.idleSinceProperty()
     ));
   }
 
